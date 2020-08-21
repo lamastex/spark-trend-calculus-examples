@@ -10,6 +10,14 @@ See Streaming Example with multiple sources and sinks:
 
 - [notebooks/db/02streamable-trend-calculus](notebooks/db/02streamable-trend-calculus.md)
 
+
+
+# Resources
+
+This builds on the following library and its antecedents therein:
+
+- [https://github.com/lamastex/spark-trend-calculus](https://github.com/lamastex/spark-trend-calculus)
+
 ---
 ---
 
