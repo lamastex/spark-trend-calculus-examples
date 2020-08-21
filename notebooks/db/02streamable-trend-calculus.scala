@@ -1,4 +1,9 @@
 // Databricks notebook source
+// MAGIC %md
+// MAGIC # Streaming Trend Calculus with Maximum Necessary Reversals
+
+// COMMAND ----------
+
 import java.sql.Timestamp
 import io.delta.tables._
 import org.apache.spark.sql._
