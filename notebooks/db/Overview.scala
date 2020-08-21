@@ -23,4 +23,11 @@
 
 // COMMAND ----------
 
-//Testing
+// MAGIC %md
+// MAGIC # Notebooks 
+// MAGIC 
+// MAGIC - showcasing trend-calculus
+// MAGIC - tsreaming and estimators
+
+// COMMAND ----------
+
