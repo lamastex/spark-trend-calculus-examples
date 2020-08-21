@@ -1,6 +1,32 @@
 // Databricks notebook source
 // MAGIC %md
 // MAGIC # Streaming Trend Calculus with Maximum Necessary Reversals
+// MAGIC 
+// MAGIC Johannes Graner, Albert Nilsson and Raazesh Sainudiin
+// MAGIC 
+// MAGIC 2020, Uppsala, Sweden
+// MAGIC 
+// MAGIC This work was inspired by Antoine Aamennd's texata-2017 repository forked here:
+// MAGIC 
+// MAGIC - https://github.com/lamastex/spark-texata-2020/
+// MAGIC 
+// MAGIC and Andrew Morgan's Trend Calculus Library extended and adapted for Spark structured streams here:
+// MAGIC 
+// MAGIC - https://github.com/lamastex/spark-trend-calculus
+// MAGIC 
+// MAGIC 
+// MAGIC This project was supported by Combient Mix AB through summer internships at:
+// MAGIC 
+// MAGIC Combient Competence Centre for Data Engineering Sciences, 
+// MAGIC Department of Mathematics, 
+// MAGIC Uppsala University, Uppsala, Sweden
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC We use the spark-trend-calculus library and Spark structured streams over delta.io files to obtain a representation of the complete time series of trends with their k-th order reversal.
+// MAGIC 
+// MAGIC This representation is a sufficient statistic for a Markov model of trends that we show in the next notebook.
 
 // COMMAND ----------
 
@@ -27,11 +53,6 @@ display(spark.read.format("delta").load(oilGoldPath).orderBy("x"))
 
 // COMMAND ----------
 
-//val timePointSchema = (new StructType).add("x", "timestamp").add("y", "double")
-//val tickerPointSchema = (new StructType).add("ticker", "string").add("x", "timestamp").add("y", "double")
-
-// COMMAND ----------
-
 val numReversals = 15
 val windowSize = 2
 val inputPath = oilGoldPath
@@ -52,10 +73,6 @@ case class flatReversal(
   y: Double,
   reversal: Int
 )
-
-// COMMAND ----------
-
-//val flatRevSchema = new StructType().add("ticker", "string").add("x", "timestamp").add("y", "double").add("reversal", "int")
 
 // COMMAND ----------
 
@@ -159,8 +176,11 @@ val maxRevDS = revTables.foldLeft(oilGoldTable.toDF.withColumn("reversal", lit(0
 
 // COMMAND ----------
 
-maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
+maxRevDS.write.mode("overwrite").format("delta").partitionBy("ticker").save(maxRevPath)
 
 // COMMAND ----------
 
 display(DeltaTable.forPath(maxRevPath).toDF.as[flatReversal].filter("ticker == 'BCOUSD'").orderBy("x"))
+
+// COMMAND ----------
+
