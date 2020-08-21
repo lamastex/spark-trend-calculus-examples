@@ -2,7 +2,7 @@
 
 Example Applications of Trend Calculus in Spark
 
-[notebooks/db/Overview.md](notebooks/db/Overview.md)
+[notebooks/db/02streamable-trend-calculus](notebooks/db/02streamable-trend-calculus.md)
 
 ---
 ---
