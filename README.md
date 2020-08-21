@@ -1,8 +1,14 @@
 # Spark Trend Calculus Examples
 
-Example Applications of Trend Calculus in Spark in [github.io/spark-trend-calculus-examples/](https://lamastex.github.io/spark-trend-calculus-examples/)
+![oiltrends](notebooks/db/images/oiltrends.png)
 
-[notebooks/db/02streamable-trend-calculus](notebooks/db/02streamable-trend-calculus.md)
+Example Applications of Trend Calculus in Spark in 
+
+- [github.io/spark-trend-calculus-examples/](https://lamastex.github.io/spark-trend-calculus-examples/)
+
+See Streaming Example with multiple sources and sinks:
+
+- [notebooks/db/02streamable-trend-calculus](notebooks/db/02streamable-trend-calculus.md)
 
 ---
 ---
