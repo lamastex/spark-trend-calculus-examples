@@ -1,5 +1,16 @@
 # Spark Trend Calculus Examples
 
+Johannes Graner, Albert Nilsson and Raazesh Sainudiin
+
+2020, Uppsala, Sweden
+
+
+This project was supported by Combient Mix AB through summer internships at:
+
+Combient Competence Centre for Data Engineering Sciences, 
+Department of Mathematics, 
+Uppsala University, Uppsala, Sweden
+
 ## Introduction to Trend Calculus
 
 Trend Calculus is an algorithm invented by Andrew Morgan that is used to find trend changes in a time series. The images in this section are taken from Morgan's presentation which can be found [here](https://github.com/bytesumo/TrendCalculus/blob/master/HowToStudyTrends_v1.03.pdf).
@@ -18,24 +29,13 @@ When the trends have been calculated for all windows, the points where the trend
 
 The output of the algorithm is a time series consisting of all the labelled reversal points. It is therefore possible to use this as the input for another run of the Trend Calculus algorithm, finding more long term trends.
 
+
 ## Trend Calculus of OIL Price
 
 Example Applications of Trend Calculus in Apache Spark.
 
 ![oiltrends](notebooks/db/images/oiltrends.png)
 
-
-
-Johannes Graner, Albert Nilsson and Raazesh Sainudiin
-
-2020, Uppsala, Sweden
-
-
-This project was supported by Combient Mix AB through summer internships at:
-
-Combient Competence Centre for Data Engineering Sciences, 
-Department of Mathematics, 
-Uppsala University, Uppsala, Sweden
 
 ### Streaming Example with multiple sources and sinks:
 
@@ -44,6 +44,7 @@ Uppsala University, Uppsala, Sweden
 ### A simple Markov Chain model for trend prediction
 
 - [notebooks/db/03streamable-trend-calculus-estimators](notebooks/db/03streamable-trend-calculus-estimators.md)
+
 - ...
 
 # Resources
