@@ -1,4 +1,17 @@
 # Spark Trend Calculus Examples
+
+## Introduction to Trend Calculus
+
+Trend Calculus is an algorithm invented by Andrew Morgan that is used to find trend changes in a time series. The images in this section are taken from Morgan's presentation which can be found [here](https://github.com/bytesumo/TrendCalculus/blob/master/HowToStudyTrends_v1.03.pdf).
+
+It works by grouping the observations in the time series into windows and defining a trend upwards as "higher highs and lower lows" compared to the previous window.
+
+![HigherHighLowerLow](notebooks/db/images/HigherHighLowerLow.png)
+
+
+
+![trendReversals](notebooks/db/images/trendReversals.png)
+
 ## Trend Calculus of OIL Price
 
 Example Applications of Trend Calculus in Apache Spark.
