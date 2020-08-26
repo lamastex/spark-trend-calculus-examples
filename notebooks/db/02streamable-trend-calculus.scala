@@ -1,11 +1,36 @@
 // Databricks notebook source
 // MAGIC %md
-// MAGIC # Finding trends using Spark Structured Streaming.
+// MAGIC # Streaming Trend Calculus with Maximum Necessary Reversals
+// MAGIC 
+// MAGIC Johannes Graner, Albert Nilsson and Raazesh Sainudiin
+// MAGIC 
+// MAGIC 2020, Uppsala, Sweden
+// MAGIC 
+// MAGIC This project was supported by Combient Mix AB through summer internships at:
+// MAGIC 
+// MAGIC Combient Competence Centre for Data Engineering Sciences, 
+// MAGIC Department of Mathematics, 
+// MAGIC Uppsala University, Uppsala, Sweden
+// MAGIC 
+// MAGIC ## Resources
+// MAGIC 
+// MAGIC This builds on the following library and its antecedents therein:
+// MAGIC 
+// MAGIC - [https://github.com/lamastex/spark-trend-calculus](https://github.com/lamastex/spark-trend-calculus)
+// MAGIC 
+// MAGIC 
+// MAGIC ## This work was inspired by:
+// MAGIC 
+// MAGIC - Antoine Aamennd's [texata-2017](https://github.com/aamend/texata-r2-2017)
+// MAGIC - Andrew Morgan's [Trend Calculus Library](https://github.com/ByteSumoLtd/TrendCalculus-lua)
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC In this notebook, examples are provided for how to use the [Spark Trend Calculus library](https://github.com/lamastex/spark-trend-calculus) to apply the Trend Calculus algorithm to streaming data using Spark Structued Streaming.
+
+// MAGIC We use the spark-trend-calculus library and Spark structured streams over delta.io files to obtain a representation of the complete time series of trends with their k-th order reversal.
+// MAGIC 
+// MAGIC This representation is a sufficient statistic for a Markov model of trends that we show in the next notebook.
 
 // COMMAND ----------
 
