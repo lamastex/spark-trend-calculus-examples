@@ -6,6 +6,8 @@
 
 // MAGIC %md
 // MAGIC When dealing with time series, it can be difficult to find a good way to find and analyze trends in the data. 
+// MAGIC 
+// MAGIC One approach is by using the Trend Calculus algorithm invented by Andrew Morgan. More information about Trend Calculus can be found at [this](https://lamastex.github.io/spark-trend-calculus-examples/) github.io page.
 
 // COMMAND ----------
 
