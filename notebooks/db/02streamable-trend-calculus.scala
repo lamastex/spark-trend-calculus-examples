@@ -1,4 +1,14 @@
 // Databricks notebook source
+// MAGIC %md
+// MAGIC # Finding trends using Spark Structured Streaming.
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC In this notebook, examples are provided for how to use the [Spark Trend Calculus library](https://github.com/lamastex/spark-trend-calculus) to apply the Trend Calculus algorithm to streaming data using Spark Structued Streaming.
+
+// COMMAND ----------
+
 import java.sql.Timestamp
 import io.delta.tables._
 import org.apache.spark.sql._
@@ -10,8 +20,12 @@ import org.lamastex.spark.trendcalculus._
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC Input data in s3. The data contains oil price data from 2010 to 2019 and gold price data from 2010.
+
+// COMMAND ----------
+
 val rootPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/"
-val oil2018Path = rootPath + "oilData2018"
 val oilAllPath = rootPath + "oilDataAll"
 val gold2010Path = rootPath + "goldData2010"
 val oilGoldPath = rootPath + "oilGoldDelta"
@@ -22,14 +36,8 @@ display(spark.read.format("delta").load(oilGoldPath).orderBy("x"))
 
 // COMMAND ----------
 
-//val timePointSchema = (new StructType).add("x", "timestamp").add("y", "double")
-//val tickerPointSchema = (new StructType).add("ticker", "string").add("x", "timestamp").add("y", "double")
-
-// COMMAND ----------
-
-val numReversals = 15
-val windowSize = 2
-val inputPath = oilGoldPath
+// MAGIC %md
+// MAGIC Reading the data from s3 as a Structured Stream to simulate streaming.
 
 // COMMAND ----------
 
@@ -41,28 +49,28 @@ val input = spark
 
 // COMMAND ----------
 
-case class flatReversal(
-  ticker: String,
-  x: Timestamp,
-  y: Double,
-  reversal: Int
-)
+// MAGIC %md
+// MAGIC Using the trendcalculus library to
+// MAGIC 1. Apply Trend Calculus to the streaming dataset.
+// MAGIC - Save the result as a delta table.
+// MAGIC - Read the result as a stream.
+// MAGIC - Repeat from 1. using the latest result as input. Stop when result is empty.
 
 // COMMAND ----------
 
-//val flatRevSchema = new StructType().add("ticker", "string").add("x", "timestamp").add("y", "double").add("reversal", "int")
+val windowSize = 2
 
-// COMMAND ----------
-
+// Initializing variables for while loop.
 var i = 1
 var prevSinkPath = ""
 var sinkPath = rootPath + "multiSinks/reversal" + (i)
 var chkptPath = rootPath + "multiSinks/checkpoint/" + (i)
 
+// The first order reversal.
 var stream = new TrendCalculus2(input, windowSize, spark)
   .reversals
   .select("tickerPoint.ticker", "tickerPoint.x", "tickerPoint.y", "reversal")
-  .as[flatReversal]
+  .as[FlatReversal]
   .writeStream
   .format("delta")
   .option("path", sinkPath)
@@ -76,27 +84,24 @@ i += 1
 
 var lastReversalSeries = spark.emptyDataset[TickerPoint]
 while (!spark.read.format("delta").load(sinkPath).isEmpty) {
+  
   prevSinkPath = rootPath + "multiSinks/reversal" + (i-1)
   sinkPath = rootPath + "multiSinks/reversal" + (i)
   chkptPath = rootPath + "multiSinks/checkpoint/" + (i)
-  try {
-    lastReversalSeries = spark
-      .readStream
-      .format("delta")
-      .load(prevSinkPath)
-      .drop("reversal")
-      .as[TickerPoint]
-  } catch {
-    case e: Exception => {
-      println("i: " + i + ". prevSinkPath: " + prevSinkPath)
-      throw e
-    }
-  }
+  
+  // Reading last result as stream
+  lastReversalSeries = spark
+    .readStream
+    .format("delta")
+    .load(prevSinkPath)
+    .drop("reversal")
+    .as[TickerPoint]
 
+  // Writing next result
   stream = new TrendCalculus2(lastReversalSeries, windowSize, spark)
     .reversals
     .select("tickerPoint.ticker", "tickerPoint.x", "tickerPoint.y", "reversal")
-    .as[flatReversal]
+    .as[FlatReversal]
     .map( rev => rev.copy(reversal=i*rev.reversal))
     .writeStream
     .format("delta")
@@ -107,6 +112,7 @@ while (!spark.read.format("delta").load(sinkPath).isEmpty) {
     .start
   
   stream.processAllAvailable()
+  
   i += 1
 }
 
@@ -117,18 +123,34 @@ while (!spark.read.format("delta").load(sinkPath).isEmpty) {
 
 // COMMAND ----------
 
+// The total number of reversals written
 val i = dbutils.fs.ls(rootPath + "multiSinks").length - 1
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC The written delta tables can be read as streams but for now we read them as static datasets to be able to join them together.
 
 // COMMAND ----------
 
 val sinkPaths = (1 to i-1).map(rootPath + "multiSinks/reversal" + _)
 val maxRevPath = rootPath + "maxRev"
-val revTables = sinkPaths.map(DeltaTable.forPath(_).toDF.as[flatReversal])
+val revTables = sinkPaths.map(DeltaTable.forPath(_).toDF.as[FlatReversal])
 val oilGoldTable = DeltaTable.forPath(oilGoldPath).toDF.as[TickerPoint]
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC The number of reversals decrease rapidly as the reversal order increases.
+
+// COMMAND ----------
+
 revTables.map(_.cache.count)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC Joining all results to get a dataset with all reversals in a single column.
 
 // COMMAND ----------
 
@@ -138,9 +160,7 @@ def maxByAbs(a: Int, b: Int): Int = {
 
 val maxByAbsUDF = udf((a: Int, b: Int) => maxByAbs(a,b))
 
-// COMMAND ----------
-
-val maxRevDS = revTables.foldLeft(oilGoldTable.toDF.withColumn("reversal", lit(0)).as[flatReversal]){ (acc: Dataset[flatReversal], ds: Dataset[flatReversal]) => 
+val maxRevDS = revTables.foldLeft(oilGoldTable.toDF.withColumn("reversal", lit(0)).as[FlatReversal]){ (acc: Dataset[FlatReversal], ds: Dataset[FlatReversal]) => 
   acc
     .toDF
     .withColumnRenamed("reversal", "oldMaxRev")
@@ -149,13 +169,23 @@ val maxRevDS = revTables.foldLeft(oilGoldTable.toDF.withColumn("reversal", lit(0
     .na.fill(0,Seq("newRev"))
     .withColumn("reversal", maxByAbsUDF($"oldMaxRev", $"newRev"))
     .select("ticker", "x", "y", "reversal")
-    .as[flatReversal]    
+    .as[FlatReversal]    
 }
 
 // COMMAND ----------
 
-maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
+// Writing the joined dataset to a delta table.
+// maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
 
 // COMMAND ----------
 
-display(DeltaTable.forPath(maxRevPath).toDF.as[flatReversal].filter("ticker == 'BCOUSD'").orderBy("x"))
+// MAGIC %md
+// MAGIC The reversal column in the joined dataset contains the information of all orders of reversals.
+// MAGIC 
+// MAGIC `0` indicates that no reversal happens while a non-zero value indicates that this is a reversal point for that order and every lower order.
+// MAGIC 
+// MAGIC For example, row 33 contains the value `-4`, meaning that this point is trend reversal downwards for orders 1, 2, 3, and 4.
+
+// COMMAND ----------
+
+display(DeltaTable.forPath(maxRevPath).toDF.as[FlatReversal].filter("ticker == 'BCOUSD'").orderBy("x"))
