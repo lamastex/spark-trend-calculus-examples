@@ -6,6 +6,8 @@
 
 // MAGIC %md
 // MAGIC When dealing with time series, it can be difficult to find a good way to find and analyze trends in the data. 
+// MAGIC 
+// MAGIC One approach is by using the Trend Calculus algorithm invented by Andrew Morgan. More information about Trend Calculus can be found at [this](https://lamastex.github.io/spark-trend-calculus-examples/) github.io page.
 
 // COMMAND ----------
 
@@ -18,7 +20,9 @@ import java.sql.Timestamp
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC The input to the algorithm is data in the format (time, value). In this example, time is given in minutes and value is the closing price for Brent Crude Oil during that minute.
+// MAGIC The input to the algorithm is data in the format (ticker, time, value). In this example, ticker is `"BCOUSD"` (Brent Crude Oil), time is given in minutes and value is the closing price for Brent Crude Oil during that minute.
+// MAGIC 
+// MAGIC This data is historical data from 2010 to 2019 taken from https://www.histdata.com/ using methods from [FX-1-Minute-Data](https://github.com/philipperemy/FX-1-Minute-Data) by Philippe Remy. In this notebook, everything is done on static dataframes. See **02streamable-trend-calculus** for examples on streaming dataframes.
 // MAGIC 
 // MAGIC There are gaps in the data, notably during the weekends when no trading takes place, but this does not affect the algorithm as it is does not place any assumptions on the data other than that time is monotonically increasing.
 // MAGIC 
@@ -28,12 +32,13 @@ import java.sql.Timestamp
 
 val windowSize = 2
 val oilDS = spark.read.fx1m("s3a://osint-gdelt-reado/canwrite/datasets/com/histdata/*.csv").toDF.withColumn("ticker", lit("BCOUSD")).select($"ticker", $"time" as "x", $"close" as "y").as[TickerPoint].orderBy("x")
-//val oilDS = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/datasets/com/histdata/BCOUSD_M1_2010-2018.parquet").select("x","y").as[TimePoint]
 
 // COMMAND ----------
 
 // MAGIC %md
 // MAGIC If we want to look at long term trends, we can use the output time series as input for another iteration. The output contains the points of the input where the trend changes (reversals). This can be repeated several times, resulting in longer term trends.
+// MAGIC 
+// MAGIC Here, we look at (up to) 15 iterations of the algorithm. It is no problem if the output of some iteration is too small to find a reversal in the next iteration, since the output will just be an empty dataframe in that case.
 
 // COMMAND ----------
 
@@ -43,11 +48,6 @@ val dfWithReversals = new TrendCalculus2(oilDS, windowSize, spark).nReversalsJoi
 // COMMAND ----------
 
 display(dfWithReversals)
-
-// COMMAND ----------
-
-// MAGIC %md
-// MAGIC Looking at (up to) 15 iterations of the algorithm. It is no problem if the output of some iteration is too small to find a reversal in the next iteration, since the output will just be an empty dataframe in that case.
 
 // COMMAND ----------
 
@@ -74,10 +74,6 @@ dfWithReversals.unpersist
 
 // COMMAND ----------
 
-display(spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev").orderBy("x").filter("maxRev > 10"))
-
-// COMMAND ----------
-
 // MAGIC %md
 // MAGIC ## Visualization
 // MAGIC 
@@ -94,7 +90,7 @@ display(spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/t
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC Checking how much the timeseries has to be thinned out in order to display locally.
+// MAGIC Seeing how much the timeseries has to be thinned out in order to display locally.
 // MAGIC 
 // MAGIC No information about higher order trend reversals is lost since every higher order reversal is also a lower order reversal.
 
@@ -113,7 +109,9 @@ display(spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/t
 // MAGIC %md
 // MAGIC Picking an interval to focus on.
 // MAGIC 
-// MAGIC Start and end dates as (year, month, day, hour, minute, second). Only year, month and day are required.
+// MAGIC Start and end dates as (year, month, day, hour, minute, second).
+// MAGIC Only year, month and day are required.
+// MAGIC The interval from 1800 to 2200 ensures all data is selected.
 
 // COMMAND ----------
 
