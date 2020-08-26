@@ -1,6 +1,28 @@
 // Databricks notebook source
 // MAGIC %md
-// MAGIC # Finding trends in Oil Price data.
+// MAGIC # Finding trend in oil price data.
+// MAGIC 
+// MAGIC Johannes Graner, Albert Nilsson and Raazesh Sainudiin
+// MAGIC 
+// MAGIC 2020, Uppsala, Sweden
+// MAGIC 
+// MAGIC This project was supported by Combient Mix AB through summer internships at:
+// MAGIC 
+// MAGIC Combient Competence Centre for Data Engineering Sciences, 
+// MAGIC Department of Mathematics, 
+// MAGIC Uppsala University, Uppsala, Sweden
+// MAGIC 
+// MAGIC ## Resources
+// MAGIC 
+// MAGIC This builds on the following library and its antecedents therein:
+// MAGIC 
+// MAGIC - [https://github.com/lamastex/spark-trend-calculus](https://github.com/lamastex/spark-trend-calculus)
+// MAGIC 
+// MAGIC 
+// MAGIC ## This work was inspired by:
+// MAGIC 
+// MAGIC - Antoine Aamennd's [texata-2017](https://github.com/aamend/texata-r2-2017)
+// MAGIC - Andrew Morgan's [Trend Calculus Library](https://github.com/ByteSumoLtd/TrendCalculus-lua)
 
 // COMMAND ----------
 
