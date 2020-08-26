@@ -53,7 +53,7 @@ import java.sql.Timestamp
 // COMMAND ----------
 
 val windowSize = 2
-val oilDS = spark.read.fx1m("s3a://osint-gdelt-reado/canwrite/datasets/com/histdata/*.csv").toDF.withColumn("ticker", lit("BCOUSD")).select($"ticker", $"time" as "x", $"close" as "y").as[TickerPoint].orderBy("x")
+val oilDS = spark.read.fx1m("s3a://osint-gdelt-reado/findata/com/histdata/free/FX-1-Minute-Data/bcousd/*.csv.gz").toDF.withColumn("ticker", lit("BCOUSD")).select($"ticker", $"time" as "x", $"close" as "y").as[TickerPoint].orderBy("x")
 
 // COMMAND ----------
 
