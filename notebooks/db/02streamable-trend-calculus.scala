@@ -27,7 +27,7 @@
 // COMMAND ----------
 
 // MAGIC %md
-
+// MAGIC 
 // MAGIC We use the spark-trend-calculus library and Spark structured streams over delta.io files to obtain a representation of the complete time series of trends with their k-th order reversal.
 // MAGIC 
 // MAGIC This representation is a sufficient statistic for a Markov model of trends that we show in the next notebook.
