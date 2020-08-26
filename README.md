@@ -29,6 +29,8 @@ When the trends have been calculated for all windows, the points where the trend
 
 The output of the algorithm is a time series consisting of all the labelled reversal points. It is therefore possible to use this as the input for another run of the Trend Calculus algorithm, finding more long term trends.
 
+A more mathematical description of the algorithm can be found [here](https://github.com/lamastex/working-manuscript-trend-calculus)
+
 
 ## Trend Calculus of OIL Price
 
@@ -36,6 +38,9 @@ Example Applications of Trend Calculus in Apache Spark.
 
 ![oiltrends](notebooks/db/images/oiltrends.png)
 
+### Finding trend in oil price data:
+
+- [notebooks/db/01trend-calculus-showcase](notebooks/db/01trend-calculus-showcase.md)
 
 ### Streaming Example with multiple sources and sinks:
 
@@ -44,8 +49,6 @@ Example Applications of Trend Calculus in Apache Spark.
 ### A simple Markov Chain model for trend prediction
 
 - [notebooks/db/03streamable-trend-calculus-estimators](notebooks/db/03streamable-trend-calculus-estimators.md)
-
-- ...
 
 # Resources
 
