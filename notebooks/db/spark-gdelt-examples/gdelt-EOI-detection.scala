@@ -55,12 +55,12 @@ import java.text.SimpleDateFormat
 // COMMAND ----------
 
 // MAGIC %fs 
-// MAGIC ls s3a://osint-gdelt-reado/GDELT/del/bronze/normdailycountry
+// MAGIC ls s3a://osint-gdelt-reado/GDELT/delta/bronze/normdailycountry
 
 // COMMAND ----------
 
-val gkg_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/del/bronze/v1/gkg").as[GKGEventV1]
-val eve_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/del/bronze/v1/events").as[EventV1]
+val gkg_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/delta/bronze/v1/gkg").as[GKGEventV1]
+val eve_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/delta/bronze/v1/events").as[EventV1]
 
 // COMMAND ----------
 
@@ -135,6 +135,15 @@ oil_gas_cov_norm
 
 // COMMAND ----------
 
+val tot_cov_2018 = oil_gas_cov_norm.filter($"date" >"2018-01-01" && $"date"<"2018-12-31").groupBy($"date").agg(sum($"coverage").as("coverage")).orderBy(desc("coverage"))
+
+// COMMAND ----------
+
+display(tot_cov_2018)
+
+// COMMAND ----------
+
+// USA has where much coverage. Should perhaps have been smarter to normalize by country
 display(oil_gas_cov_norm.filter($"date" >"2018-01-01" && $"date"<"2018-12-31").orderBy(desc("coverage")).limit(1000))
 
 // COMMAND ----------
@@ -143,12 +152,86 @@ display(oil_gas_cov_norm.filter($"date" >"2018-01-01" && $"date"<"2018-12-31" &&
 
 // COMMAND ----------
 
-//USA has so much more coverage than the rest 
-display(oil_gas_cov_norm.filter($"date" >"2018-01-01" && $"date"<"2018-12-31" && $"country" ==="US").orderBy(desc("coverage")).limit(1000))
+// MAGIC %md
+// MAGIC ### Investigate big event
 
 // COMMAND ----------
 
-val normData = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/del/bronze/normdailycountry/").as[EventNormDailyByCountry]
+// MAGIC %md
+// MAGIC ### Investigate big event (2018-10-18) in Saudi Arabia (SA) using goose. 
+
+// COMMAND ----------
+
+val oilEventCoverageDF = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_eve_cov/")
+
+// COMMAND ----------
+
+val big_event_SA = oilEventCoverageDF.filter($"country" ==="SA" && $"eventDay" === "2018-10-18").orderBy(desc("coverage")).limit(100)
+
+// COMMAND ----------
+
+import com.aamend.spark.gdelt._
+
+val urlContentFetcher = {new ContentFetcher()
+    .setInputCol("sourceUrl")
+    .setOutputTitleCol("title")
+    .setOutputContentCol("content")
+    .setOutputKeywordsCol("keywords")
+    .setOutputPublishDateCol("publishDateCollected")
+    .setOutputDescriptionCol("description")
+    .setUserAgent("Mozilla/5.0 (X11; U; Linux x86_64; de; rv:1.9.2.8) Gecko/20100723 Ubuntu/10.04 Firefox/")
+    .setConnectionTimeout(1000)
+    .setSocketTimeout(1000)
+                        }
+
+// COMMAND ----------
+
+val SAEventURLS = urlContentFetcher.transform(big_event_SA.select($"country",$"coverage",$"date",$"sourceUrl",$"eventId")).filter(col("description") =!= "").orderBy(desc("coverage"))
+
+// COMMAND ----------
+
+display(SAEventURLS)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ### Investigate big events in Iran (IR) using goose.
+// MAGIC  - 2018-05-10
+// MAGIC  - 2018-09-25
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC #### Event 2018-05-10
+
+// COMMAND ----------
+
+val big_event_IR1 = oilEventCoverageDF.filter($"country" ==="IR" && $"eventDay" === "2018-05-10").orderBy(desc("coverage")).limit(100)
+
+// COMMAND ----------
+
+val IR1EventURLS = urlContentFetcher.transform(big_event_IR1.select($"country",$"coverage",$"date",$"sourceUrl",$"eventId")).filter(col("description") =!= "").orderBy(desc("coverage"))
+
+// COMMAND ----------
+
+display(IR1EventURLS)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC #### Event 2018-09-25
+
+// COMMAND ----------
+
+val big_event_IR2 = oilEventCoverageDF.filter($"country" ==="IR" && $"eventDay" === "2018-09-25").orderBy(desc("coverage")).limit(100)
+
+// COMMAND ----------
+
+val IR2EventURLS = urlContentFetcher.transform(big_event_IR2.select($"country",$"coverage",$"date",$"sourceUrl",$"eventId")).filter(col("description") =!= "").orderBy(desc("coverage"))
+
+// COMMAND ----------
+
+display(IR2EventURLS)
 
 // COMMAND ----------
 
@@ -157,22 +240,27 @@ val normData = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/de
 
 // COMMAND ----------
 
-val oilData2018 = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/oilData2018").withColumn("ticker",lit("oil")).select($"ticker",$"x",$"y").as[TickerPoint]
-
-val trend_oil_2018 = new TrendCalculus2(oilData2018,2,spark).nReversalsJoinedWithMaxRev(10)
-
-trend_oil_2018.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/trend_oil_2018")
+// MAGIC %md
+// MAGIC ## Focus on USA
 
 // COMMAND ----------
 
-val oil_data_all = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/oilDataAll").withColumn("ticker",lit("oil")).select($"ticker",$"x",$"y").as[TickerPoint]
+val oilData2018 = spark.read.format("delta").load("s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/oilGoldDelta").as[TickerPoint].filter($"ticker" === "BCOUSD" && year($"x") === 2018)
+
+val trend_oil_2018 = new TrendCalculus2(oilData2018,2,spark).nReversalsJoinedWithMaxRev(10)
+
+trend_oil_2018.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/trend_oil_2018")
+
+// COMMAND ----------
+
+val oil_data_all = spark.read.format("delta").load("s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/oilGoldDelta").as[TickerPoint].filter($"ticker" === "BCOUSD")
 val trend_oil_all = new TrendCalculus2(oil_data_all,2,spark).nReversalsJoinedWithMaxRev(15)
-trend_oil_all.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/trend_oil_all")
+trend_oil_all.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/trend_oil_all")
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC # Python
+// MAGIC #### Code for plot with plotly
 
 // COMMAND ----------
 
@@ -220,7 +308,7 @@ trend_oil_all.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/
 // MAGIC startReversal = 7
 // MAGIC 
 // MAGIC allData = {'x': [row['x'] for row in TS], 'y': [row['sy'] for row in TS], 'maxRev': [row['maxRev'] for row in TS]}
-// MAGIC allDataCov = {'x': [row['date'] for row in us_coverage], 'y': [row['coverage'] for row in us_coverage]}
+// MAGIC allDataCov = {'x': [row['date'] for row in coverage], 'y': [row['coverage'] for row in coverage]}
 // MAGIC 
 // MAGIC temp2 = max(allDataCov['y'])-min(allDataCov['y'])
 // MAGIC standardCoverage = list(map(lambda x: (x-min(allDataCov['y']))/temp2,allDataCov['y']))
@@ -246,3 +334,6 @@ trend_oil_all.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/
 // MAGIC   output_type='div'
 // MAGIC )
 // MAGIC displayHTML(p)
+
+// COMMAND ----------
+
