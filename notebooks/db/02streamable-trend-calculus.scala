@@ -27,7 +27,7 @@
 // COMMAND ----------
 
 // MAGIC %md
-
+// MAGIC 
 // MAGIC We use the spark-trend-calculus library and Spark structured streams over delta.io files to obtain a representation of the complete time series of trends with their k-th order reversal.
 // MAGIC 
 // MAGIC This representation is a sufficient statistic for a Markov model of trends that we show in the next notebook.
@@ -46,13 +46,11 @@ import org.lamastex.spark.trendcalculus._
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC Input data in s3. The data contains oil price data from 2010 to 2019 and gold price data from 2010.
+// MAGIC Input data in s3. The data contains oil price data from 2010 to last month and gold price data from 2009 to last month.
 
 // COMMAND ----------
 
 val rootPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/"
-val oilAllPath = rootPath + "oilDataAll"
-val gold2010Path = rootPath + "goldData2010"
 val oilGoldPath = rootPath + "oilGoldDelta"
 
 // COMMAND ----------
@@ -200,7 +198,7 @@ val maxRevDS = revTables.foldLeft(oilGoldTable.toDF.withColumn("reversal", lit(0
 // COMMAND ----------
 
 // Writing the joined dataset to a delta table.
-// maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
+maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
 
 // COMMAND ----------
 
