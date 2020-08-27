@@ -26,8 +26,6 @@
 // MAGIC %md
 // MAGIC # Notebooks 
 // MAGIC 
-// MAGIC - showcasing trend-calculus
-// MAGIC - tsreaming and estimators
-
-// COMMAND ----------
-
+// MAGIC - [Showcasing Trend Calculus](notebooks/db/01trend-calculus-showcase.md)
+// MAGIC - [Streaming Trend Calculus](notebooks/db/02streamable-trend-calculus.md)
+// MAGIC - [Markov Model](notebooks/db/03streamable-trend-calculus-estimators.md)
