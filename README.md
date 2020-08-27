@@ -29,7 +29,7 @@ When the trends have been calculated for all windows, the points where the trend
 
 The output of the algorithm is a time series consisting of all the labelled reversal points. It is therefore possible to use this as the input for another run of the Trend Calculus algorithm, finding more long term trends.
 
-A more mathematical description of the algorithm can be found [here](https://github.com/lamastex/working-manuscript-trend-calculus)
+A more mathematical description of the algorithm can be found [here](https://github.com/lamastex/working-manuscript-trend-calculus).
 
 
 ## Trend Calculus of OIL Price
