@@ -42,13 +42,19 @@ Example Applications of Trend Calculus in Apache Spark.
 
 - [notebooks/db/01trend-calculus-showcase](notebooks/db/01trend-calculus-showcase.md)
 
+This is the basic use case of Trend Calculus, reading static financial data and using Trend Calculus to find trend reversals.
+
 ### Streaming Example with multiple sources and sinks:
 
 - [notebooks/db/02streamable-trend-calculus](notebooks/db/02streamable-trend-calculus.md)
 
+A slightly different syntax is required to run several iterations of Trend Calculus on a streaming dataframe. Finding the maximum order trend reversal at a given point can not be performed on streaming dataframes.
+
 ### A simple Markov Chain model for trend prediction
 
 - [notebooks/db/03streamable-trend-calculus-estimators](notebooks/db/03streamable-trend-calculus-estimators.md)
+
+As seen in this notebook, the information in the trend reversals contain information that can be used to predict future trends. This should be considered a proof-of-concept to show that trend reversals could be a useful feature in more advanced machine learning models.
 
 # Resources
 
