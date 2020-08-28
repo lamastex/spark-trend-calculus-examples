@@ -52,6 +52,8 @@ A slightly different syntax is required to run several iterations of Trend Calcu
 
 ### A simple Markov Chain model for trend prediction
 
+Here it is also shown that a model can be trained on trend reversals from different time series and yield results that are comparable to training on the same amount of data from a single time series.
+
 - [notebooks/db/03streamable-trend-calculus-estimators](notebooks/db/03streamable-trend-calculus-estimators.md)
 
 As seen in this notebook, the information in the trend reversals contain information that can be used to predict future trends. This should be considered a proof-of-concept to show that trend reversals could be a useful feature in more advanced machine learning models.
