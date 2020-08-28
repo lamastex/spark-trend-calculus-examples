@@ -18,6 +18,11 @@
 // MAGIC - [notebooks/db/gdelt-EOI-detection](notebooks/db/gdelt-EOI-detection.md)
 // MAGIC - [notebooks/db/gdelt-POI-detection](notebooks/db/gdelt-POI-detection.md)
 // MAGIC 
+// MAGIC ***Steps:***
+// MAGIC 1. Extracting coverage around gas and oil from each country.
+// MAGIC 2. Extracting the news around dates with high coverage (big events).
+// MAGIC 3. Enrich oil price with trend calculus and comparing it to the coverage.
+// MAGIC 
 // MAGIC # Resources
 // MAGIC 
 // MAGIC This builds on the following libraries and its antecedents therein:
@@ -33,37 +38,31 @@
 
 // COMMAND ----------
 
+// DBTITLE 1,Importing packages.
 import spark.implicits._
 import io.delta.tables._
 import com.aamend.spark.gdelt._
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.{Dataset,DataFrame,SaveMode}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.expressions._
-import java.sql.Date
-import org.apache.spark.sql.functions._
 import org.lamastex.spark.trendcalculus._
-
-
-import org.apache.spark.sql.functions.to_date
-
-import java.sql.Date
-import java.sql.Timestamp
+import java.sql.{Date,Timestamp}
 import java.text.SimpleDateFormat
 
 // COMMAND ----------
 
-// MAGIC %fs 
-// MAGIC ls s3a://osint-gdelt-reado/GDELT/delta/bronze/normdailycountry
-
-// COMMAND ----------
-
+// DBTITLE 1,Loading in the data.
 val gkg_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/delta/bronze/v1/gkg").as[GKGEventV1]
 val eve_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/delta/bronze/v1/events").as[EventV1]
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC # 1. Extracting coverage around gas and oil from each country
+
+// COMMAND ----------
+
+// DBTITLE 1,Limits the data and extracts the events related to oil and gas theme.
 val gkg_v1_filt = gkg_v1.filter($"publishDate">"2013-04-01 00:00:00" && $"publishDate"<"2019-12-31 00:00:00")
 
 val oil_gas_themeGKG = gkg_v1_filt.filter(c =>c.themes.contains("ENV_GAS") || c.themes.contains("ENV_OIL"))
@@ -72,13 +71,15 @@ val oil_gas_themeGKG = gkg_v1_filt.filter(c =>c.themes.contains("ENV_GAS") || c.
                               .groupBy($"eventId")
                               .agg(count($"eventId"))
                               .toDF("eventId","count") 
-
-// COMMAND ----------
-
 val oil_gas_eventDF = eve_v1.toDF()
                           .join( oil_gas_themeGKG, "eventId")
 
- oil_gas_eventDF.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_event_v1")
+ 
+
+// COMMAND ----------
+
+// DBTITLE 1,Checkpoint.
+oil_gas_eventDF.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_event_v1")
 
 // COMMAND ----------
 
@@ -86,6 +87,8 @@ val  oil_gas_eventDF = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summ
 
 // COMMAND ----------
 
+// DBTITLE 1,Extracting coverage for each country.
+// Counting number of articles for each country, each day and applying a moving average on each country's coverage
 def movingAverage(df:DataFrame,size:Int,avgOn:String):DataFrame = {
   val windowSpec = Window.partitionBy($"country").orderBy($"date").rowsBetween(-size/2, size/2)
 return df.withColumn("coverage",avg(avgOn).over(windowSpec))
@@ -97,7 +100,7 @@ val oilEventTemp = oil_gas_eventDF.filter(length(col("eventGeo.countryCode")) > 
                                                             )
                                                      .agg(
                                                             sum(col("numArticles")).as("articles"),
-                                                                  avg(col("goldstein")).as("goldstein")
+                                                                  avg(col("goldstein")).as("goldstein") // Did not end up using this.
                                                             )
 
 
@@ -107,18 +110,11 @@ val (mean_articles, std_articles) = oilEventTemp.select(mean("articles"), stddev
   
 val oilEventWeeklyCoverage = movingAverage(oilEventTemp.withColumn("normArticles", ($"articles"-mean_articles) /std_articles)                                                                                        ,7,"normArticles")      
 
+
+
+// COMMAND ----------
+
 oilEventWeeklyCoverage.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_cov_norm")
-
-// COMMAND ----------
-
-val oilEventWeeklyCoverage = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_cov_norm/")
-
-// COMMAND ----------
-
-val oilEventWeeklyCoverageC = oilEventWeeklyCoverage.drop($"goldstein").drop($"normArticles").drop($"articles").toDF("country","tempDate","coverage")
-val oilEventCoverageDF = oilEventWeeklyCoverageC.join(oil_gas_eventDF,oil_gas_eventDF("eventDay") === oilEventWeeklyCoverageC("tempDate") && oil_gas_eventDF("eventGeo.countryCode")
-                       === oilEventWeeklyCoverageC("country"))
-oilEventCoverageDF.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_eve_cov/")
 
 // COMMAND ----------
 
@@ -126,12 +122,25 @@ val oil_gas_cov_norm = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summ
 
 // COMMAND ----------
 
-oil_gas_cov_norm
+// DBTITLE 1,Enrich the event data with the extracted coverage.
+val oilEventWeeklyCoverageC = oilEventWeeklyCoverage.drop($"goldstein").drop($"normArticles").drop($"articles").toDF("country","tempDate","coverage")
+val oilEventCoverageDF = oilEventWeeklyCoverageC.join(oil_gas_eventDF,oil_gas_eventDF("eventDay") === oilEventWeeklyCoverageC("tempDate") && oil_gas_eventDF("eventGeo.countryCode")
+                       === oilEventWeeklyCoverageC("country"))
+
+
+// COMMAND ----------
+
+// DBTITLE 1,Checkpoint.
+oilEventCoverageDF.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_eve_cov/")
+
+// COMMAND ----------
+
+val oilEventCoverageDF = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_eve_cov/")
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC # Lets look at 2018 
+// MAGIC ## Lets look at 2018.
 
 // COMMAND ----------
 
@@ -143,7 +152,6 @@ display(tot_cov_2018)
 
 // COMMAND ----------
 
-// USA has where much coverage. Should perhaps have been smarter to normalize by country
 display(oil_gas_cov_norm.filter($"date" >"2018-01-01" && $"date"<"2018-12-31").orderBy(desc("coverage")).limit(1000))
 
 // COMMAND ----------
@@ -152,26 +160,17 @@ display(oil_gas_cov_norm.filter($"date" >"2018-01-01" && $"date"<"2018-12-31" &&
 
 // COMMAND ----------
 
-// MAGIC %md
-// MAGIC ### Investigate big event
+// MAGIC %md 
+// MAGIC # 2. Extracting the news around dates with high coverage (big events)
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ### Investigate big event (2018-10-18) in Saudi Arabia (SA) using goose. 
+// MAGIC ### Investigating big event (2018-10-18) in Saudi Arabia (SA) using goose. 
 
 // COMMAND ----------
 
-val oilEventCoverageDF = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/oil_gas_eve_cov/")
-
-// COMMAND ----------
-
-val big_event_SA = oilEventCoverageDF.filter($"country" ==="SA" && $"eventDay" === "2018-10-18").orderBy(desc("coverage")).limit(100)
-
-// COMMAND ----------
-
-import com.aamend.spark.gdelt._
-
+// DBTITLE 1,Initializing the web scraper.
 val urlContentFetcher = {new ContentFetcher()
     .setInputCol("sourceUrl")
     .setOutputTitleCol("title")
@@ -186,6 +185,7 @@ val urlContentFetcher = {new ContentFetcher()
 
 // COMMAND ----------
 
+val big_event_SA = oilEventCoverageDF.filter($"country" ==="SA" && $"eventDay" === "2018-10-18").orderBy(desc("coverage")).limit(100)
 val SAEventURLS = urlContentFetcher.transform(big_event_SA.select($"country",$"coverage",$"date",$"sourceUrl",$"eventId")).filter(col("description") =!= "").orderBy(desc("coverage"))
 
 // COMMAND ----------
@@ -195,7 +195,7 @@ display(SAEventURLS)
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ### Investigate big events in Iran (IR) using goose.
+// MAGIC ### Investigating big events in Iran (IR) using goose.
 // MAGIC  - 2018-05-10
 // MAGIC  - 2018-09-25
 
@@ -207,9 +207,6 @@ display(SAEventURLS)
 // COMMAND ----------
 
 val big_event_IR1 = oilEventCoverageDF.filter($"country" ==="IR" && $"eventDay" === "2018-05-10").orderBy(desc("coverage")).limit(100)
-
-// COMMAND ----------
-
 val IR1EventURLS = urlContentFetcher.transform(big_event_IR1.select($"country",$"coverage",$"date",$"sourceUrl",$"eventId")).filter(col("description") =!= "").orderBy(desc("coverage"))
 
 // COMMAND ----------
@@ -224,9 +221,6 @@ display(IR1EventURLS)
 // COMMAND ----------
 
 val big_event_IR2 = oilEventCoverageDF.filter($"country" ==="IR" && $"eventDay" === "2018-09-25").orderBy(desc("coverage")).limit(100)
-
-// COMMAND ----------
-
 val IR2EventURLS = urlContentFetcher.transform(big_event_IR2.select($"country",$"coverage",$"date",$"sourceUrl",$"eventId")).filter(col("description") =!= "").orderBy(desc("coverage"))
 
 // COMMAND ----------
@@ -236,15 +230,17 @@ display(IR2EventURLS)
 // COMMAND ----------
 
 // MAGIC %md 
-// MAGIC # enrich data with trendCalculus
+// MAGIC # Enrich data with Trend Calculus
+// MAGIC For more information about Trend Calculus, see [this github.io page](https://lamastex.github.io/spark-trend-calculus-examples/).
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ## Focus on USA
+// MAGIC #### Focus on USA
 
 // COMMAND ----------
 
+// DBTITLE 1,Gather trend reversals of oil price in 2018.
 val oilData2018 = spark.read.format("delta").load("s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/oilGoldDelta").as[TickerPoint].filter($"ticker" === "BCOUSD" && year($"x") === 2018)
 
 val trend_oil_2018 = new TrendCalculus2(oilData2018,2,spark).nReversalsJoinedWithMaxRev(10)
@@ -253,6 +249,7 @@ trend_oil_2018.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite
 
 // COMMAND ----------
 
+// DBTITLE 1,Gather trend reversals of all oil price data.
 val oil_data_all = spark.read.format("delta").load("s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/oilGoldDelta").as[TickerPoint].filter($"ticker" === "BCOUSD")
 val trend_oil_all = new TrendCalculus2(oil_data_all,2,spark).nReversalsJoinedWithMaxRev(15)
 trend_oil_all.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/trend_oil_all")
@@ -260,7 +257,12 @@ trend_oil_all.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC #### Code for plot with plotly
+// MAGIC # 3. Comparing the coverage with oil price
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ##### Code for plot below
 
 // COMMAND ----------
 
@@ -294,16 +296,6 @@ trend_oil_all.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/
 // COMMAND ----------
 
 // MAGIC %python
-// MAGIC oil_gas_cov_us_2015_2018.count()
-
-// COMMAND ----------
-
-// MAGIC %md 
-// MAGIC # 2015 - 2018
-
-// COMMAND ----------
-
-// MAGIC %python
 // MAGIC numReversals = 15
 // MAGIC startReversal = 7
 // MAGIC 
@@ -327,6 +319,7 @@ trend_oil_all.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/
 
 // COMMAND ----------
 
+// DBTITLE 1,Plot of oil price together with oil and gas coverage for USA
 // MAGIC %python
 // MAGIC p = plot(
 // MAGIC   [Scattergl(x=allData['x'], y=allData['y'], mode='lines', name='Oil Price'),Scattergl(x=allDataCov['x'], y=standardCoverage, mode='lines', name='Oil and gas coverage usa ')] + markerPlots 
@@ -334,6 +327,3 @@ trend_oil_all.write.mode("overwrite").parquet("s3a://osint-gdelt-reado/canwrite/
 // MAGIC   output_type='div'
 // MAGIC )
 // MAGIC displayHTML(p)
-
-// COMMAND ----------
-
