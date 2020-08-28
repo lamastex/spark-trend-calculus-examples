@@ -58,7 +58,7 @@ dbutils.widgets.dropdown("numTrainingSets", "10", (1 to 20).map( i => (i*5).toSt
 // COMMAND ----------
 
 val maxRevPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/maxRev"
-val maxRevDS = spark.read.format("delta").load(maxRevPath).as[FlatReversal].filter("ticker == 'BCOUSD'")
+val maxRevDS = spark.read.format("delta").load(maxRevPath).as[FlatReversal]
 
 // COMMAND ----------
 
@@ -96,7 +96,7 @@ val truncRevUDF = udf{ rev: Int => rev.signum }
 def truncRevsUDF(k: Int) = udf{ revs: Seq[Int] => revs.map(truncRev(k)) }
 
 def lagColumn(df: DataFrame, orderColumnName: String, lagKeyName: String, lagValueName: String, m: Int, n: Int): DataFrame = {
-  val windowSpec = Window.orderBy(orderColumnName)
+  val windowSpec = Window.partitionBy("ticker").orderBy(orderColumnName)
   val laggedKeyColNames = (1 to m).map( i => s"lagKey$i" ).toSeq
   val laggedValueColNames = (1 to n).map( i => s"lagValue$i" ).toSeq
   val dfWithLaggedKeyColumns = (n+1 to m+n)
@@ -126,7 +126,7 @@ val maxRevDSWithLag = lagColumn(
     .orderBy("x")
     .toDF
     .withColumn("truncRev", truncRevUDF($"reversal"))
-    .withColumn("tmpTrend", sum("truncRev").over(Window.orderBy("x").rowsBetween(Window.unboundedPreceding, Window.currentRow)))
+    .withColumn("tmpTrend", sum("truncRev").over(Window.partitionBy("ticker").orderBy("x").rowsBetween(Window.unboundedPreceding, Window.currentRow)))
     .withColumn("trend", when($"tmpTrend" === 0, 1).otherwise(-1))
     .drop("truncRev", "tmpTrend"),
   "x", 
@@ -179,7 +179,9 @@ val numberOfRows = maxRevDSWithLagCount.count
 
 // COMMAND ----------
 
-val trainingDF = maxRevDSWithLagCount.limit((numberOfRows*trainingRatio).toInt)
+val tickers = maxRevDSWithLagCount.select("ticker").distinct.as[String].collect.toSeq
+val tickerDFs = tickers.map( ticker => maxRevDSWithLagCount.filter($"ticker" === ticker))
+val trainingDF = tickerDFs.map( df => df.limit((df.count*trainingRatio).toInt) ).reduce( _.union(_) ).orderBy("x")
 val trainingRows = trainingDF.count
 
 val testingDF = maxRevDSWithLagCount.except(trainingDF)
@@ -210,7 +212,7 @@ val keyValueCountPartialDFs = rowsInPartitions.map(
 
 // COMMAND ----------
 
-display(keyValueCountPartialDFs.last)
+display(keyValueCountPartialDFs.last.orderBy($"keyValueObs".desc))
 
 // COMMAND ----------
 
@@ -218,7 +220,7 @@ keyValueCountPartialDFs
   .map( df =>
     df
       .withColumn("probability", divUDF($"keyValueObs", $"totalKeyObs"))
-      .drop("keyValueObs", "totalKeyObs", "normalizaton", "totalValueObs")
+      .drop("keyValueObs", "totalKeyObs")
   )
   .zip(partialModelPaths).map{ case (df: DataFrame, path: String) =>
     df.write.mode("overwrite").format("delta").save(path)  
@@ -230,7 +232,7 @@ val probDFs = partialModelPaths.map(spark.read.format("delta").load(_))
 
 // COMMAND ----------
 
-display(probDFs.last)
+display(probDFs.last.orderBy("probability"))
 
 // COMMAND ----------
 
@@ -255,6 +257,7 @@ val testedDFs = probDFs
       .agg(collect_list("lagValue"))
     
     testingDF
+      .filter($"ticker" === "BCOUSD")
       .join(predictionDF, Seq("lagKey"), "left")
       .withColumnRenamed("collect_list(lagValue)", "test")
   }
@@ -285,7 +288,9 @@ display(lossDFs.last)
 
 // COMMAND ----------
 
-val testLength = testingDF.count //712824
+val testLength = testingDF.count
+val oilTestDF = testingDF.filter($"ticker" === "BCOUSD")
+val oilTestLength = oilTestDF.count
 
 // COMMAND ----------
 
@@ -294,7 +299,8 @@ val testLength = testingDF.count //712824
 
 // COMMAND ----------
 
-val losses = lossDFs.map( _.agg(sum("loss")).select($"sum(loss)".as("totalLoss")).collect.head.getLong(0).toDouble/testLength )
+val losses = lossDFs.map( _.agg(sum("loss")).select($"sum(loss)".as("totalLoss")).collect.head.getLong(0).toDouble/oilTestLength )
+// Data up to 2019
 // k=max, m=2 ,n=1: (0.5489615950080244, 0.4014721726541194, 0.3660973816818738, 0.36497087640146797, 0.36485163238050344)
 // k=max, m=10,n=1: (0.9812730246821787, 0.8523390131056561, 0.5819573469954631, 0.3552177121357085, 0.2807503135425113)
 // k=max,m=100,n=1: (1.0, 1.0, 1.0, 1.0, 1.0)
@@ -303,12 +309,26 @@ val losses = lossDFs.map( _.agg(sum("loss")).select($"sum(loss)".as("totalLoss")
 
 // k=max, m=10,n=2: (0.9879380657977248, 0.9049354606556204, 0.7243136776273427, 0.5472986906951395, 0.4783823708897465)
 
-// (0.9977203284971564, 0.9812730246821787, 0.9455375956409875, 0.8523810993487855, 0.7183644724769999, 0.5819320952495854, 0.44607349380350214, 0.35513915114853356, 0.3029480010437388, 0.280629666312207)
+// k=max(17), m=10,n=1, 10 training sets: (0.9977203284971564, 0.9812730246821787, 0.9455375956409875, 0.8523810993487855, 0.7183644724769999, 0.5819320952495854, 0.44607349380350214, 0.35513915114853356, 0.3029480010437388, 0.280629666312207)
+
+// Data up to last month
+// k=max(18), m=10,n=1, 10 training sets: (0.9973104051296998, 0.9843882250072865, 0.9510789857184494, 0.8574351501020111, 0.7515744680851064, 0.6360547945205479, 0.5099656076945497, 0.4249921305741766, 0.3735668901194987, 0.34609501603031184)
+// Could the difference be due to Corona?
 
 // COMMAND ----------
 
 val trainingSizes = probDFs.map(_.count)
-val lossesDS = sc.parallelize(losses.zip(trainingSizes)).toDF("loss", "size").as[(Double,Long)]
+val lossesDS = sc
+  .parallelize(losses.zip(trainingSizes))
+  .toDF("loss", "size")
+  .withColumn("training", lit("Oil and Gold"))
+  .union(
+    sc
+      .parallelize(Seq(0.9973104051296998, 0.9843882250072865, 0.9510789857184494, 0.8574351501020111, 0.7515744680851064, 0.6360547945205479, 0.5099656076945497, 0.4249921305741766, 0.3735668901194987, 0.34609501603031184).zip(Seq(4, 18, 77, 331, 1414, 6036, 25759, 109918, 469036, 2001430)))
+      .toDF("loss", "size")
+      .withColumn("training", lit("Oil"))
+  )
+  .as[(Double,Long,String)]
 
 // COMMAND ----------
 
