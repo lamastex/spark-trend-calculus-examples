@@ -48,6 +48,8 @@ Example Applications of Trend Calculus in Apache Spark.
 
 ### A simple Markov Chain model for trend prediction
 
+Here it is also shown that a model can be trained on trend reversals from different time series and yield results that are comparable to training on the same amount of data from a single time series.
+
 - [notebooks/db/03streamable-trend-calculus-estimators](notebooks/db/03streamable-trend-calculus-estimators.md)
 
 # Resources
