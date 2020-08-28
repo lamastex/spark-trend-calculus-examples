@@ -51,9 +51,9 @@ dbutils.widgets.dropdown("numTrainingSets", "10", (1 to 20).map( i => (i*5).toSt
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC Reading the joined dataset from the last notebook and selecting only the oil price data. 
+// MAGIC Reading the joined dataset from the last notebook.
 // MAGIC 
-// MAGIC It should be possible to train the model on reversal data from many different time series. For example, a model trained on oil, gold, silver, etc. would be a commodity model that *should* be able to predict any one of the commodities it trained on. However, for simplicity, this notebook only trains on oil price data and only predicts oil price data.
+// MAGIC We train the model using both oil and gold data and predict trends in oil data. We show that this yields better results than just training on the oil data.
 
 // COMMAND ----------
 
@@ -296,6 +296,8 @@ val oilTestLength = oilTestDF.count
 
 // MAGIC %md
 // MAGIC We find the mean loss for each training dataset of increasing size. As one can see, the loss decreases as more data is supplied.
+// MAGIC 
+// MAGIC Further, training on both oil and gold data yields a better result than just oil, suggesting that trends behave similarly in the two commodities.
 
 // COMMAND ----------
 
@@ -314,6 +316,9 @@ val losses = lossDFs.map( _.agg(sum("loss")).select($"sum(loss)".as("totalLoss")
 // Data up to last month
 // k=max(18), m=10,n=1, 10 training sets: (0.9973104051296998, 0.9843882250072865, 0.9510789857184494, 0.8574351501020111, 0.7515744680851064, 0.6360547945205479, 0.5099656076945497, 0.4249921305741766, 0.3735668901194987, 0.34609501603031184)
 // Could the difference be due to Corona?
+
+// Trained on both oil and gold. testing on oil as previously.
+// k=max(18), m=10,n=1, 10 training sets: (0.9999778490236083, 0.9980728650539201, 0.9527158262897114, 0.8921317400174876, 0.7559988341591373, 0.5820915185077237, 0.46675488195861264, 0.3923101136694841, 0.3574876129408336, 0.3355837948120082)
 
 // COMMAND ----------
 
