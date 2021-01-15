@@ -38,15 +38,19 @@ Example Applications of Trend Calculus in Apache Spark.
 
 ![oiltrends](notebooks/db/images/oiltrends.png)
 
+### Utility functions for paths in file system
+
+- [notebooks/ScaDaMaLe/000a-finance-utils](notebooks/ScaDaMaLe/000a_finance_utils.md)
+
 ### Finding trend in oil price data:
 
-- [notebooks/db/01trend-calculus-showcase](notebooks/db/01trend-calculus-showcase.md)
+- [notebooks/ScaDaMaLe/01-trend-calculus-showcase](notebooks/ScaDaMaLe/01_trend_calculus_showcase.md)
 
 This is the basic use case of Trend Calculus, reading static financial data and using Trend Calculus to find trend reversals.
 
 ### Streaming Example with multiple sources and sinks:
 
-- [notebooks/db/02streamable-trend-calculus](notebooks/db/02streamable-trend-calculus.md)
+- [notebooks/ScaDaMaLe/02-streamable-trend-calculus](notebooks/ScaDaMaLe/02_streamable_trend_calculus.md)
 
 A slightly different syntax is required to run several iterations of Trend Calculus on a streaming dataframe. Finding the maximum order trend reversal at a given point can not be performed on streaming dataframes.
 
@@ -54,7 +58,7 @@ A slightly different syntax is required to run several iterations of Trend Calcu
 
 Here it is also shown that a model can be trained on trend reversals from different time series and yield results that are comparable to training on the same amount of data from a single time series.
 
-- [notebooks/db/03streamable-trend-calculus-estimators](notebooks/db/03streamable-trend-calculus-estimators.md)
+- [notebooks/ScaDaMaLe/03-streamable-trend-calculus-estimators](notebooks/ScaDaMaLe/03_streamable_trend_calculus_estimators.md)
 
 As seen in this notebook, the information in the trend reversals contain information that can be used to predict future trends. This should be considered a proof-of-concept to show that trend reversals could be a useful feature in more advanced machine learning models.
 
