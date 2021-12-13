@@ -65,6 +65,9 @@ As seen in this notebook, the information in the trend reversals contain informa
 ## Bivariate Trend Calculus of OIL Price and GOLD ounce in USD
 ![bivariatetrends](images/GoldVsOil.png)
 
+## Bivariate Trend Calculus GOLD ounce and S&P index in USD
+![bivariatetrends](images/GoldVsS&P.png)
+
 # Resources
 
 This builds on the following library and its antecedents therein:
