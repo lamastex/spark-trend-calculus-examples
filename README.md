@@ -62,6 +62,9 @@ Here it is also shown that a model can be trained on trend reversals from differ
 
 As seen in this notebook, the information in the trend reversals contain information that can be used to predict future trends. This should be considered a proof-of-concept to show that trend reversals could be a useful feature in more advanced machine learning models.
 
+## Bivariate Trend Calculus of OIL Price and GOLD ounce in USD
+![bivariatetrends](images/GoldVsOil.png)
+
 # Resources
 
 This builds on the following library and its antecedents therein:
