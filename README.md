@@ -11,6 +11,16 @@ Combient Competence Centre for Data Engineering Sciences,
 Department of Mathematics, 
 Uppsala University, Uppsala, Sweden
 
+
+
+Rafailia Stavroula Vlachou and Virginia Jimenez Mohedano
+
+2021, Uppsala, Sweden
+ 
+2021 Data Science Project fellowships at:
+
+Combient Competence Centre for Data Engineering Sciences, Department of Mathematics, Uppsala University, Uppsala, Sweden and COmbient Mix AB, Stockholm.
+
 ## Introduction to Trend Calculus
 
 Trend Calculus is an algorithm invented by Andrew Morgan that is used to find trend changes in a time series. The images in this section are taken from Morgan's presentation which can be found [here](https://github.com/bytesumo/TrendCalculus/blob/master/HowToStudyTrends_v1.03.pdf).
