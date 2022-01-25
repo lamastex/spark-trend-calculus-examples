@@ -57,7 +57,7 @@ dbutils.widgets.dropdown("numTrainingSets", "10", (1 to 20).map( i => (i*5).toSt
 
 // COMMAND ----------
 
-val maxRevPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/maxRev"
+val maxRevPath = "s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/johannes/streamable-trend-calculus/maxRev"
 val maxRevDS = spark.read.format("delta").load(maxRevPath).as[FlatReversal]
 
 // COMMAND ----------
@@ -71,7 +71,7 @@ val maxRevDS = spark.read.format("delta").load(maxRevPath).as[FlatReversal]
 
 // COMMAND ----------
 
-val modelPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/estimators/"
+val modelPath = "s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/johannes/streamable-trend-calculus/estimators/"
 val maxRevDSWithLagCountPath = modelPath + "maxRevDSWithLag"
 
 val numPartitions = dbutils.widgets.get("numTrainingSets").toInt // 5

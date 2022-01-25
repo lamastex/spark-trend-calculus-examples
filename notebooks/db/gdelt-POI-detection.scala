@@ -50,7 +50,7 @@ import org.graphframes.GraphFrame
 
 // COMMAND ----------
 
-val gkg_v1 = spark.read.format("delta").load("s3a://osint-gdelt-reado/GDELT/del/bronze/v1/gkg").as[GKGEventV1]
+val gkg_v1 = spark.read.format("delta").load("s3a://xxxxx-yyyyy-zzzzz/GDELT/del/bronze/v1/gkg").as[GKGEventV1]
 
 // COMMAND ----------
 
@@ -97,17 +97,17 @@ println("filtered edge count: " + fil_pers_graph.edges.count())
 
 // COMMAND ----------
 
-sc.setCheckpointDir("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/")
+sc.setCheckpointDir("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/")
 
 // COMMAND ----------
 
 val comp_vertices = fil_pers_graph.connectedComponents.run()
-comp_vertices.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/comp_vertices")
+comp_vertices.write.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/comp_vertices")
 
 
 // COMMAND ----------
 
-val comp_vertices = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/comp_vertices")
+val comp_vertices = spark.read.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/comp_vertices")
 val comp_graph = GraphFrame(comp_vertices,fil_pers_graph.edges)
 
 // COMMAND ----------
@@ -124,13 +124,13 @@ val label_vertices = big_comp_graph.labelPropagation.maxIter(10).run()
 
 // COMMAND ----------
 
-label_vertices.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/label_vertices")
-big_comp_graph.edges.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/label_edges")
+label_vertices.write.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/label_vertices")
+big_comp_graph.edges.write.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/label_edges")
 
 // COMMAND ----------
 
-val label_vertices = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/label_vertices")
-val label_edges = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/label_edges")
+val label_vertices = spark.read.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/label_vertices")
+val label_edges = spark.read.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/label_edges")
 
 // COMMAND ----------
 
@@ -146,13 +146,13 @@ val com_rank_graph =label_graph.pageRank.resetProbability(0.15).tol(0.015).run()
 
 // COMMAND ----------
 
-com_rank_graph.vertices.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_vertices")
-com_rank_graph.edges.write.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_edges")
+com_rank_graph.vertices.write.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_vertices")
+com_rank_graph.edges.write.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_edges")
 
 // COMMAND ----------
 
-val com_rank_vertices = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_vertices")
-val com_rank_edges =spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_edges")
+val com_rank_vertices = spark.read.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_vertices")
+val com_rank_edges =spark.read.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/albert/texata/person_graph/com_rank_edges")
 val com_rank_graph = GraphFrame(com_rank_vertices,com_rank_edges)
 
 // COMMAND ----------

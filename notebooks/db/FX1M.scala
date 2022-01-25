@@ -29,7 +29,7 @@ import org.lamastex.spark.trendcalculus._
 
 // COMMAND ----------
 
-val filePathRoot = "s3a://osint-gdelt-reado/findata/com/histdata/free/FX-1-Minute-Data/"
+val filePathRoot = "s3a://xxxxx-yyyyy-zzzzz/findata/com/histdata/free/FX-1-Minute-Data/"
 
 // COMMAND ----------
 
