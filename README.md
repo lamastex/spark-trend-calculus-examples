@@ -11,6 +11,16 @@ Combient Competence Centre for Data Engineering Sciences,
 Department of Mathematics, 
 Uppsala University, Uppsala, Sweden
 
+
+
+Rafailia Stavroula Vlachou and Virginia Jimenez Mohedano
+
+2021, Uppsala, Sweden
+ 
+2021 Data Science Project fellowships at:
+
+Combient Competence Centre for Data Engineering Sciences, Department of Mathematics, Uppsala University, Uppsala, Sweden and COmbient Mix AB, Stockholm.
+
 ## Introduction to Trend Calculus
 
 Trend Calculus is an algorithm invented by Andrew Morgan that is used to find trend changes in a time series. The images in this section are taken from Morgan's presentation which can be found [here](https://github.com/bytesumo/TrendCalculus/blob/master/HowToStudyTrends_v1.03.pdf).
@@ -61,6 +71,12 @@ Here it is also shown that a model can be trained on trend reversals from differ
 - [notebooks/ScaDaMaLe/03-streamable-trend-calculus-estimators](notebooks/ScaDaMaLe/03_streamable_trend_calculus_estimators.md)
 
 As seen in this notebook, the information in the trend reversals contain information that can be used to predict future trends. This should be considered a proof-of-concept to show that trend reversals could be a useful feature in more advanced machine learning models.
+
+## Bivariate Trend Calculus of OIL Price and GOLD ounce in USD
+![bivariatetrends](images/GoldVsOil.png)
+
+## Bivariate Trend Calculus GOLD ounce and S&P index in USD
+![bivariatetrends](images/GoldVsS&P.png)
 
 # Resources
 
