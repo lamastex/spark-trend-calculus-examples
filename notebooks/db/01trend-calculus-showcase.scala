@@ -53,23 +53,25 @@ import java.sql.Timestamp
 // COMMAND ----------
 
 val windowSize = 2
-val oilDS = spark.read.fx1m("s3a://xxxxx-yyyyy-zzzzz/findata/com/histdata/free/FX-1-Minute-Data/bcousd/*.csv.gz").toDF.withColumn("ticker", lit("BCOUSD")).select($"ticker", $"time" as "x", $"close" as "y").as[TickerPoint].orderBy("x")
+val oilDS = spark.read.fx1m("s3a://osint-gdelt-reado/findata/com/histdata/free/FX-1-Minute-Data/bcousd/*.csv.gz")
+  .toDF.withColumn("ticker", lit("BCOUSD"))
+  .select($"ticker", $"time" as "x", $"close" as "y")
+  .as[TickerPoint].distinct.orderBy("x")
 
 // COMMAND ----------
 
 // MAGIC %md
 // MAGIC If we want to look at long term trends, we can use the output time series as input for another iteration. The output contains the points of the input where the trend changes (reversals). This can be repeated several times, resulting in longer term trends.
 // MAGIC 
-// MAGIC Here, we look at (up to) 15 iterations of the algorithm. It is no problem if the output of some iteration is too small to find a reversal in the next iteration, since the output will just be an empty dataframe in that case.
+// MAGIC The algorithm computes all possible orders of trend reversal in one pass.
 
 // COMMAND ----------
 
-val numReversals = 15
-val dfWithReversals = new TrendCalculus2(oilDS, windowSize, spark).nReversalsJoinedWithMaxRev(numReversals)
+val dfWithReversals = new TrendCalculus2(oilDS, windowSize, spark).reversals
 
 // COMMAND ----------
 
-display(dfWithReversals)
+display(dfWithReversals.cache.orderBy("tickerPoint.x"))
 
 // COMMAND ----------
 
@@ -82,7 +84,12 @@ dfWithReversals.cache.count
 
 // COMMAND ----------
 
-(1 to numReversals).map( i => println(dfWithReversals.filter(s"reversal$i is not null").count))
+println("order\tcount")
+dfWithReversals
+  .groupBy(abs($"reversal") as "reversal").agg(count($"tickerPoint") as "count")
+  .orderBy("reversal").select("count").as[Long]
+  .collect.scanRight(0L)(_ + _).dropRight(1).zipWithIndex.tail
+  .foreach(rev => println(s"${rev._2}:\t${rev._1}"))
 
 // COMMAND ----------
 
@@ -91,7 +98,7 @@ dfWithReversals.cache.count
 
 // COMMAND ----------
 
-dfWithReversals.write.mode(SaveMode.Overwrite).parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev")
+dfWithReversals.write.mode(SaveMode.Overwrite).parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev")
 dfWithReversals.unpersist
 
 // COMMAND ----------
@@ -107,7 +114,8 @@ dfWithReversals.unpersist
 // MAGIC from plotly.offline import plot
 // MAGIC from plotly.graph_objs import *
 // MAGIC from datetime import *
-// MAGIC joinedDS = spark.read.parquet("s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev").orderBy("x")
+// MAGIC from pyspark.sql.functions import abs
+// MAGIC joinedDS = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev").orderBy("tickerPoint.x")
 
 // COMMAND ----------
 
@@ -119,12 +127,12 @@ dfWithReversals.unpersist
 // COMMAND ----------
 
 // MAGIC %python
-// MAGIC joinedDS.filter("maxRev > 2").count()
+// MAGIC joinedDS.filter("abs(reversal) > 2").count()
 
 // COMMAND ----------
 
 // MAGIC %python
-// MAGIC fullTS = joinedDS.filter("maxRev > 2").select("x","y","maxRev").collect()
+// MAGIC fullTS = joinedDS.filter("abs(reversal) > 2").withColumn("x", joinedDS.tickerPoint.x).withColumn("y", joinedDS.tickerPoint.y).withColumn("maxRev", abs(joinedDS.reversal)).select("x","y","maxRev").collect()
 
 // COMMAND ----------
 
@@ -150,7 +158,7 @@ dfWithReversals.unpersist
 // COMMAND ----------
 
 // MAGIC %python
-// MAGIC numReversals = 15
+// MAGIC numReversals = 17
 // MAGIC startReversal = 7
 // MAGIC 
 // MAGIC allData = {'x': [row['x'] for row in TS], 'y': [row['y'] for row in TS], 'maxRev': [row['maxRev'] for row in TS]}
