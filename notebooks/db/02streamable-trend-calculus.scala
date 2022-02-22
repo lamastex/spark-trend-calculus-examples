@@ -50,7 +50,7 @@ import org.lamastex.spark.trendcalculus._
 
 // COMMAND ----------
 
-val rootPath = "s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/johannes/streamable-trend-calculus/"
+val rootPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/"
 val oilGoldPath = rootPath + "oilGoldDelta"
 
 // COMMAND ----------
@@ -73,24 +73,20 @@ val input = spark
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC Using the trendcalculus library to
-// MAGIC 1. Apply Trend Calculus to the streaming dataset.
-// MAGIC - Save the result as a delta table.
-// MAGIC - Read the result as a stream.
-// MAGIC - Repeat from 1. using the latest result as input. Stop when result is empty.
+// MAGIC The Trend Calculus algorithm computes trend reversals of all orders in one pass. 
+// MAGIC 
+// MAGIC However, a point may be identified as a higher order reversal much later than it is originally identified as a first order reversal.
+// MAGIC Due to the nature of streaming data, this cannot be corrected for during the stream, so aggregations to keep only the highest reversal order for each point must be done at a later stage, where the dataset is read as a static dataset.
 
 // COMMAND ----------
 
 val windowSize = 2
+val sinkPath = rootPath + "stream/reversals"
+val chkptPath = rootPath + "stream/checkpoint"
 
-// Initializing variables for while loop.
-var i = 1
-var prevSinkPath = ""
-var sinkPath = rootPath + "multiSinks/reversal" + (i)
-var chkptPath = rootPath + "multiSinks/checkpoint/" + (i)
+// COMMAND ----------
 
-// The first order reversal.
-var stream = new TrendCalculus2(input, windowSize, spark)
+val stream = new TrendCalculus2(input, windowSize, spark)
   .reversals
   .select("tickerPoint.ticker", "tickerPoint.x", "tickerPoint.y", "reversal")
   .as[FlatReversal]
@@ -101,65 +97,19 @@ var stream = new TrendCalculus2(input, windowSize, spark)
   .trigger(Trigger.Once())
   .start
 
-stream.processAllAvailable
-
-i += 1
-
-var lastReversalSeries = spark.emptyDataset[TickerPoint]
-while (!spark.read.format("delta").load(sinkPath).isEmpty) {
-  
-  prevSinkPath = rootPath + "multiSinks/reversal" + (i-1)
-  sinkPath = rootPath + "multiSinks/reversal" + (i)
-  chkptPath = rootPath + "multiSinks/checkpoint/" + (i)
-  
-  // Reading last result as stream
-  lastReversalSeries = spark
-    .readStream
-    .format("delta")
-    .load(prevSinkPath)
-    .drop("reversal")
-    .as[TickerPoint]
-
-  // Writing next result
-  stream = new TrendCalculus2(lastReversalSeries, windowSize, spark)
-    .reversals
-    .select("tickerPoint.ticker", "tickerPoint.x", "tickerPoint.y", "reversal")
-    .as[FlatReversal]
-    .map( rev => rev.copy(reversal=i*rev.reversal))
-    .writeStream
-    .format("delta")
-    .option("path", sinkPath)
-    .option("checkpointLocation", chkptPath)
-    .partitionBy("ticker")
-    .trigger(Trigger.Once())
-    .start
-  
-  stream.processAllAvailable()
-  
-  i += 1
-}
-
-// COMMAND ----------
-
-// DELETES THE SINKS
-//dbutils.fs.rm(rootPath + "multiSinks", recurse=true)
-
-// COMMAND ----------
-
-// The total number of reversals written
-val i = dbutils.fs.ls(rootPath + "multiSinks").length - 1
+stream.processAllAvailable()
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC The written delta tables can be read as streams but for now we read them as static datasets to be able to join them together.
+// MAGIC The written delta table can be read as streams but for now we read it as a static dataset and keep only the highest order reversal at each point.
 
 // COMMAND ----------
 
-val sinkPaths = (1 to i-1).map(rootPath + "multiSinks/reversal" + _)
-val maxRevPath = rootPath + "maxRev"
-val revTables = sinkPaths.map(DeltaTable.forPath(_).toDF.as[FlatReversal])
-val oilGoldTable = DeltaTable.forPath(oilGoldPath).toDF.as[TickerPoint]
+val revTable = DeltaTable.forPath(sinkPath).toDF.as[FlatReversal]
+  .withColumn("reversalType", signum($"reversal"))
+  .groupBy($"ticker", $"x", $"y", $"reversalType").agg((max(abs($"reversal")) * $"reversalType").cast("int") as "reversal")
+  .drop($"reversalType").as[FlatReversal]
 
 // COMMAND ----------
 
@@ -168,42 +118,17 @@ val oilGoldTable = DeltaTable.forPath(oilGoldPath).toDF.as[TickerPoint]
 
 // COMMAND ----------
 
-revTables.map(_.cache.count)
+println("order\tcount")
+revTable
+  .groupBy(abs($"reversal") as "reversal").agg(count($"x") as "count")
+  .orderBy("reversal").select("count").as[Long]
+  .collect.scanRight(0L)(_ + _).dropRight(1).zipWithIndex
+  .foreach(rev => println(s"${rev._2}:\t${rev._1}"))
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC Joining all results to get a dataset with all reversals in a single column.
-
-// COMMAND ----------
-
-def maxByAbs(a: Int, b: Int): Int = {
-  Seq(a,b).maxBy(math.abs)
-}
-
-val maxByAbsUDF = udf((a: Int, b: Int) => maxByAbs(a,b))
-
-val maxRevDS = revTables.foldLeft(oilGoldTable.toDF.withColumn("reversal", lit(0)).as[FlatReversal]){ (acc: Dataset[FlatReversal], ds: Dataset[FlatReversal]) => 
-  acc
-    .toDF
-    .withColumnRenamed("reversal", "oldMaxRev")
-    .join(ds.select($"ticker" as "tmpt", $"x" as "tmpx", $"reversal" as "newRev"), $"ticker" === $"tmpt" && $"x" === $"tmpx", "left")
-    .drop("tmpt", "tmpx")
-    .na.fill(0,Seq("newRev"))
-    .withColumn("reversal", maxByAbsUDF($"oldMaxRev", $"newRev"))
-    .select("ticker", "x", "y", "reversal")
-    .as[FlatReversal]    
-}
-
-// COMMAND ----------
-
-// Writing the joined dataset to a delta table.
-maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
-
-// COMMAND ----------
-
-// MAGIC %md
-// MAGIC The reversal column in the joined dataset contains the information of all orders of reversals.
+// MAGIC The reversal column contains the information of all orders of reversals.
 // MAGIC 
 // MAGIC `0` indicates that no reversal happens while a non-zero value indicates that this is a reversal point for that order and every lower order.
 // MAGIC 
@@ -211,4 +136,4 @@ maxRevDS.write.format("delta").partitionBy("ticker").save(maxRevPath)
 
 // COMMAND ----------
 
-display(DeltaTable.forPath(maxRevPath).toDF.as[FlatReversal].filter("ticker == 'BCOUSD'").orderBy("x"))
+display(revTable.filter("ticker == 'BCOUSD'").orderBy("x"))

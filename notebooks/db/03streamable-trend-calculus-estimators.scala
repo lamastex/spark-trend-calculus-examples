@@ -57,7 +57,7 @@ dbutils.widgets.dropdown("numTrainingSets", "10", (1 to 20).map( i => (i*5).toSt
 
 // COMMAND ----------
 
-val maxRevPath = "s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/johannes/streamable-trend-calculus/maxRev"
+val maxRevPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/stream/reversals"
 val maxRevDS = spark.read.format("delta").load(maxRevPath).as[FlatReversal]
 
 // COMMAND ----------
@@ -71,12 +71,12 @@ val maxRevDS = spark.read.format("delta").load(maxRevPath).as[FlatReversal]
 
 // COMMAND ----------
 
-val modelPath = "s3a://xxxxx-yyyyy-zzzzz/canwrite/summerinterns2020/johannes/streamable-trend-calculus/estimators/"
-val maxRevDSWithLagCountPath = modelPath + "maxRevDSWithLag"
+val modelPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/estimators_new/"
+val maxRevDSWithLagCountPath = modelPath + "maxRevDSWithLag_new"
 
 val numPartitions = dbutils.widgets.get("numTrainingSets").toInt // 5
-val partialModelPaths = (1 to numPartitions).map( i => modelPath + s"partialModel${i}" )
-val fullModelPath = modelPath + "fullModel"
+val partialModelPaths = (1 to numPartitions).map( i => modelPath + s"partialModel_new${i}" )
+val fullModelPath = modelPath + "fullModel_new"
 
 val m = dbutils.widgets.get("m").toInt // 5
 val n = dbutils.widgets.get("n").toInt // 1
@@ -222,7 +222,7 @@ keyValueCountPartialDFs
       .withColumn("probability", divUDF($"keyValueObs", $"totalKeyObs"))
       .drop("keyValueObs", "totalKeyObs")
   )
-  .zip(partialModelPaths).map{ case (df: DataFrame, path: String) =>
+  .zip(partialModelPaths).foreach{ case (df: DataFrame, path: String) =>
     df.write.mode("overwrite").format("delta").save(path)  
   }
 
@@ -320,6 +320,9 @@ val losses = lossDFs.map( _.agg(sum("loss")).select($"sum(loss)".as("totalLoss")
 // Trained on both oil and gold. testing on oil as previously.
 // k=max(18), m=10,n=1, 10 training sets: (0.9999778490236083, 0.9980728650539201, 0.9527158262897114, 0.8921317400174876, 0.7559988341591373, 0.5820915185077237, 0.46675488195861264, 0.3923101136694841, 0.3574876129408336, 0.3355837948120082)
 
+// With Trend Calculus 3.0, k=max, m=10, n=1, 10 training sets, gold + oil, data up to July 2020:
+// (0.9999941707209302, 0.9985007094232627, 0.9521334578467343, 0.886164672470297, 0.7528152503267311, 0.5654190843601609, 0.42830045037010095, 0.3455165265890906, 0.30489694417532603, 0.28647991988238847)
+
 // COMMAND ----------
 
 val trainingSizes = probDFs.map(_.count)
@@ -327,12 +330,6 @@ val lossesDS = sc
   .parallelize(losses.zip(trainingSizes))
   .toDF("loss", "size")
   .withColumn("training", lit("Oil and Gold"))
-  .union(
-    sc
-      .parallelize(Seq(0.9973104051296998, 0.9843882250072865, 0.9510789857184494, 0.8574351501020111, 0.7515744680851064, 0.6360547945205479, 0.5099656076945497, 0.4249921305741766, 0.3735668901194987, 0.34609501603031184).zip(Seq(4, 18, 77, 331, 1414, 6036, 25759, 109918, 469036, 2001430)))
-      .toDF("loss", "size")
-      .withColumn("training", lit("Oil"))
-  )
   .as[(Double,Long,String)]
 
 // COMMAND ----------
