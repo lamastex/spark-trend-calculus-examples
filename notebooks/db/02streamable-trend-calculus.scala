@@ -50,7 +50,7 @@ import org.lamastex.spark.trendcalculus._
 
 // COMMAND ----------
 
-val rootPath = "s3a://osint-gdelt-reado/canwrite/summerinterns2020/johannes/streamable-trend-calculus/"
+val rootPath = "s3a://xxx-yyy-zzz/canwrite/summerinterns2020/johannes/streamable-trend-calculus/"
 val oilGoldPath = rootPath + "oilGoldDelta"
 
 // COMMAND ----------
