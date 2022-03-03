@@ -53,7 +53,7 @@ import java.sql.Timestamp
 // COMMAND ----------
 
 val windowSize = 2
-val oilDS = spark.read.fx1m("s3a://osint-gdelt-reado/findata/com/histdata/free/FX-1-Minute-Data/bcousd/*.csv.gz")
+val oilDS = spark.read.fx1m("s3a://xxx-yyy-zzz/findata/com/histdata/free/FX-1-Minute-Data/bcousd/*.csv.gz")
   .toDF.withColumn("ticker", lit("BCOUSD"))
   .select($"ticker", $"time" as "x", $"close" as "y")
   .as[TickerPoint].distinct.orderBy("x")
@@ -98,7 +98,7 @@ dfWithReversals
 
 // COMMAND ----------
 
-dfWithReversals.write.mode(SaveMode.Overwrite).parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev")
+dfWithReversals.write.mode(SaveMode.Overwrite).parquet("s3a://xxx-yyy-zzz/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev")
 dfWithReversals.unpersist
 
 // COMMAND ----------
@@ -115,7 +115,7 @@ dfWithReversals.unpersist
 // MAGIC from plotly.graph_objs import *
 // MAGIC from datetime import *
 // MAGIC from pyspark.sql.functions import abs
-// MAGIC joinedDS = spark.read.parquet("s3a://osint-gdelt-reado/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev").orderBy("tickerPoint.x")
+// MAGIC joinedDS = spark.read.parquet("s3a://xxx-yyy-zzz/canwrite/summerinterns2020/trend-calculus-blog/public/joinedDSWithMaxRev").orderBy("tickerPoint.x")
 
 // COMMAND ----------
 
